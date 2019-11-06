@@ -1,0 +1,180 @@
+* {
+  transition: background 0.1s linear;
+}
+
+.app {
+  background-color: #888;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.app.dark {
+  background-color: #333;
+  color: white;
+}
+
+.feed {
+  background: #0003;
+  height: 100%;
+
+  overflow-y: scroll;
+
+  padding: 30px !important;
+}
+
+.sidebar {
+  height: 100%;
+}
+
+button, button:focus {
+  outline: none !important;
+  border: none;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+.sidebar .buttons {
+  position: absolute;
+  width: 15vw;
+  height: 15vw;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+
+  transform: translate(-50%, -50%);
+
+  --time: 0.3s;
+  transition: left var(--time) linear, transform var(--time) linear, top var(--time) linear, width var(--time) linear, height var(--time) linear, background 0.1s, border-radius 0.1s linear;
+}
+
+.sidebar .buttons.minimized {
+  top: 0;
+  left: 100%;
+  transform: translate(-150%, 30%);
+  height: 4vw;
+  width: 4vw;
+  cursor: pointer;
+}
+
+.sidebar .buttons:hover, .sidebar .buttons.minimized {
+  background-color: #FFF1;
+  border-radius: 20%;
+}
+
+.buttons.minimized:hover {
+  background-color: #FFF2;
+}
+
+.sidebar .buttons button {
+  width: 50%;
+  height: 50%;
+  background-color: transparent;
+  font-size: 200%;
+  border-radius: 40%;
+
+  transition: opacity var(--time) linear;
+}
+
+.buttons.minimized button {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar .buttons button:hover {
+  background-color: #FFF1;
+}
+
+.post {
+  background-color: #0002;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.post:hover {
+  background-color: #0001;
+}
+
+.post:not(:last-child) {
+  margin-bottom: 10px;
+}
+
+.fetch {
+  margin: 20px auto;
+}
+
+.loading {
+  height: 40px;
+  width: 40px;
+  border-radius: 100%;
+  background-color: #FFF2;
+  margin: 0 auto;
+
+  transition: opacity 0.3s linear;
+}
+
+.loading.process {
+  animation: loading 0.5s linear infinite alternate;
+}
+
+.loading.hidden {
+  opacity: 0;
+}
+
+.post img {
+  border-radius: 20px;
+  width: 100%;
+  max-width: 200px;
+  filter: brightness(1);
+  transition: filter 0.1s linear;
+}
+
+.post img.single {
+  margin: 0 auto;
+  max-width: 400px;
+}
+
+.screen img {
+  width: 50%;
+}
+
+.post img:hover {
+  filter: brightness(1.2);
+}
+
+@keyframes loading {
+  from {
+    transform: scale(1, 1);
+  }
+  to {
+    transform: scale(0.5, 0.5);
+  }
+}
+
+.screen {
+  height: 100%;
+  width: 100%;
+  margin-top: 0;
+  padding: 20px;
+  text-align: center;
+
+  transition: margin 0.3s linear, opacity 0.2s linear;
+}
+
+.screen.hidden {
+  opacity: 0;
+  position: absolute;
+  margin-top: 60vh;
+}
+
+button.service {
+  padding: 10px 30px;
+  border-radius: 5px;
+  background-color: #FFF1;
+}
+
+button.service:hover {
+  background-color: #FFF2;
+}
