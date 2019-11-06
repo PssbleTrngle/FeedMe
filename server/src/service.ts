@@ -1,20 +1,18 @@
 import { Express } from 'express';
 import ClientOAuth2 from 'client-oauth2';
-import { User, Auth } from './database';
-import HTTPS from 'https'
-
+import request from 'request'
 import { User, Options, Auth } from './database';
 
 abstract class Service {
 
-	abstract createOAuth(): ClientOAuth2;
+	abstract createOAuth(): ClientOAuth2 | undefined;
 
 	abstract name(): string;
 
-	abstract async posts(count: number): Promise<any>;
+	abstract async posts(count: number): Promise<any[]>;
 
-	async request(url: string, method: string = 'post'): Promise<any> {
-		const values = { method, url };
+	async request(url: string, method: string = 'GET'): Promise<any> {
+		const values: any = { method, url };
 		const user = await User.getUser();
 
 		if(user) {
@@ -24,19 +22,23 @@ abstract class Service {
 			if(auth) {
 
 				const oauth = this.createOAuth();
-				const token = oauth.createToken(auth.accessToken, auth.refreshToken, {});
-		 
-				token.expiresIn(60 * 60);
+				if(!oauth) return null;
 
-				const req = token.sign(values);
+				let token = oauth.createToken(auth.accessToken, auth.refreshToken, {});
+		 
+				//const refreshed = await token.refresh();
+
+				values.headers = {
+					'Authorization': `bearer ${auth.accessToken}`,
+					'User-Agent': 'FeedMe',
+				};
+
 
 				return new Promise((resolve, reject) => {
-					const { url, method, headers } = req;
-					HTTPS.request(url, { method, headers }, res => 
-						res.on('data', data =>
-							resolve(data.toString())))
-					.on('error', e => resolve(e))
-					.end();
+					request(values, (error, response, body) => {
+						if(error) reject(`Error: ${error}`);
+						resolve(body);
+					});
 				});
 
 			}
@@ -52,24 +54,28 @@ abstract class Service {
 		const name = this.name();
 		const oauth = this.createOAuth();
 
-		app.get(`/register/${name}`, (req, res) => {
-			const uri = oauth.code.getUri();
-			res.json({uri});
-		});
+		if(oauth) {
 
-		app.get(`/callback/${name}`, async (req, res) => {
+			app.get(`/register/${name}`, (req, res) => {
+				const uri = oauth.code.getUri();
+				res.json({uri});
+			});
 
-			let answer = await oauth.code.getToken(req.originalUrl);
-			answer = await answer.refresh();
+			app.get(`/callback/${name}`, async (req, res) => {
 
-			const { accessToken, refreshToken } = answer;
+				let answer = await oauth.code.getToken(req.originalUrl);
+				answer = await answer.refresh();
 
-			const user = await User.getUser();
-			if(user) await user.authenticate(name, accessToken, refreshToken);
+				const { accessToken, refreshToken } = answer;
 
-			res.json({ accessToken, refreshToken });
+				const user = await User.getUser();
+				if(user) await user.authenticate(name, accessToken, refreshToken);
 
-		});
+				res.json({ accessToken, refreshToken });
+
+			});
+
+		}
 
 	}
 

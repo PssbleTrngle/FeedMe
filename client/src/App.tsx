@@ -2,43 +2,34 @@ import React from 'react';
 import './App.css';
 
 type PostProps = {
-	id: string
+	id: string,
+	service: string,
+	title?: string,
 	text?: string,
-	image?: string,
+	images?: string[],
 }
 
 class Post extends React.Component<{post: PostProps, app: App},{}> {
 
 	render() {
 		const { app, post } = this.props;
-		const { text, image } = post;
+		const { text, images, title, service } = post;
 
 		return (
-			<div className='post row' onClick={() => app.selectPost(post)}>
-				{text && <p className='col'>{text}</p>}
-				{image &&
-					 <div className='col'>
-						 <div className='row justify-content-end'>
-							<img alt={text} className={text ? '' : 'single'} src={image}></img>
+			<div className='post' onClick={() => app.selectPost(post)}>
+				<p className='service'>{service}</p>
+				{title && <h1 className='title'>{title}</h1>}
+				<div className='row'>
+					{text && <p className='col' dangerouslySetInnerHTML={{__html: text}}></p>}
+					{(images && images.length > 0) &&
+						 <div className='col'>
+							 <div className='row justify-content-end'>
+								{images.map((image, i) => <div className='col'>
+									<img onClick={() => app.selectPost(post, i)} key={i} alt={text} className={text ? '' : 'single'} src={image}></img>
+								</div>)}
+							</div>
 						</div>
-					</div>
-				}
-			</div>
-		);
-	}
-
-}
-
-class BigPost extends React.Component<{post: PostProps},{}> {
-
-	render() {
-		const { text, image } = this.props.post;
-
-		return (
-			<div className='row justify-content-center m h-100'>
-				<div className='col align-self-center'>
-					{image && <img className='mb-3' alt={text} src={image}></img>}
-					<p>{text}</p>
+					}
 				</div>
 			</div>
 		);
@@ -46,7 +37,60 @@ class BigPost extends React.Component<{post: PostProps},{}> {
 
 }
 
-class Feed extends React.Component<{app: App},{posts: PostProps[], loadingProcess: number, loading: boolean}> {
+type SliderProps = {images: {src: string, alt?: string}[], active: number};
+class Slider extends React.Component<SliderProps,{active: number}> {
+
+	constructor(props: SliderProps) {
+		super(props);
+		this.state = {active: props.active};
+	}
+
+	swipe(i: number) {
+		const images = this.props.images;
+		const active = Math.min(images.length - 1, Math.max(0, this.state.active + i));
+		this.setState({ active });
+	}
+
+	render() {
+		const { images } = this.props;
+		const { active } = this.state;
+
+		const multiple = images.length > 1;
+
+		return (
+			<div className='slider mb-3'>
+			{(multiple && active > 0) && <div onClick={() => this.swipe(-1)} className='previous'></div>}
+				{images.map((img, i) => {
+					let s = '';
+					if(active != i)  s += (active > i ? 'hidden-left' : 'hidden-right');
+					return <img key={i} className={s} alt={img.alt} src={img.src}></img>
+				})}
+			{(multiple && active < images.length - 1) && <div onClick={() => this.swipe(+1)} className='next'></div>}
+			</div>
+		);
+	}
+
+}
+
+class BigPost extends React.Component<{post: PostProps, active: number},{}> {
+
+	render() {
+		const { post, active } = this.props;
+		const { text, images, title } = post;
+
+		return (
+			<div className='row justify-content-center m h-100'>
+				<div className='col align-self-center'>
+					{(images && images.length > 0) && <Slider active={active} images={images.map(i => { return {src: i, alt: title || text}})} />}
+					{text && <p dangerouslySetInnerHTML={{__html: text}}></p>}
+				</div>
+			</div>
+		);
+	}
+
+}
+
+class Feed extends React.Component<{app: App},{posts: PostProps[], message?: string, loadingProcess: number, loading: boolean}> {
 
 	total = 5;
 
@@ -55,15 +99,19 @@ class Feed extends React.Component<{app: App},{posts: PostProps[], loadingProces
 		this.state = {posts: [], loadingProcess: 0, loading: false};
 	}
 
-	fetchPosts(count = 12) {
+	fetchPosts(count = 20) {
 		this.setState({ loading: true, loadingProcess: 0 })
 
 		fetch(`/posts?count=${count}`)
 			.then(res => res.json())
-			.then(loaded => {
+			.then(res => {
 
-				const posts = [...this.state.posts, ...loaded];
-				this.setState({ posts, loading: false });
+				if(Array.isArray(res)) {
+					const posts = [...this.state.posts, ...res];
+					this.setState({ posts, loading: false });
+				} else {
+					this.setState({ message: res.message });
+				}
 
 			});
 
@@ -98,15 +146,15 @@ class Feed extends React.Component<{app: App},{posts: PostProps[], loadingProces
 	}
 
 	render() {
-		const { posts, loadingProcess, loading } = this.state;
+		const { posts, loadingProcess, loading, message } = this.state;
 		const { app } = this.props;
 		const showLoading = loadingProcess > 0 || loading;
 
 		return (
 			<div className='feed col-5' onWheel={e => this.scroll(e)}>
+				{<h2 className='mt-2 mb-5 message'>{message ? message : "You've reached the top"}</h2>}
 				{posts.map((post, i) => <Post key={i} post={post} app={app} />)}
 
-				{false && <button className='fetch' onClick={() => this.fetchPosts()}>Load More</button>}
 				<div className={`loading ${showLoading ? '' : 'hidden'} ${loading ? 'process' : ''}`}></div>
 			</div>
 		);
@@ -161,7 +209,7 @@ class Settings extends React.Component<{options: Options},{}> {
 		return (
 			<>
 				<h1>Settings</h1>
-				{Object.keys(options).filter(k => typeof options[k] === 'boolean').map(k => <p key={k}>{k}: {options[k]}</p>)}
+				{Object.keys(options).filter(k => typeof options[k] === 'boolean').map(k => <p key={k}>{k}: {options[k].toString()}</p>)}
 				{services.map(service =>
 					<button className={`service ${service}`} onClick={() => this.registerService(service)} key={service}>{service}</button>
 				)}
@@ -170,13 +218,10 @@ class Settings extends React.Component<{options: Options},{}> {
 	}
 
 }
-type Screen = JSX.Element;
+type Screen = { element: JSX.Element, key: string };
+type Screens = ({ icon: string } & Screen)[]
 
-interface Screens {
-	[key: string]: {icon?: string, screen: Screen};
-};
-
-class Sidebar extends React.Component<{screen?: string, screens: Screens, app: App},{}> {
+class Sidebar extends React.Component<{screen?: Screen, last?: Screen, buttons: Screens, app: App},{}> {
 
 	constructor(props: any) {
 		super(props);
@@ -184,15 +229,13 @@ class Sidebar extends React.Component<{screen?: string, screens: Screens, app: A
 	}
 
 	render() {
-		const { screen, screens, app } = this.props;
-
-		const buttons: Screens = {};
-		Object.keys(screens).forEach(k => { if(screens[k].icon) buttons[k] = screens[k] });
+		const { screen, buttons, app, last } = this.props;
 
 		return (
 			<div className='sidebar col row'>
 				<SidebarButtons screens={buttons} minimized={screen !== undefined} sidebar={app} />
-				{Object.keys(screens).map((k, i) => <div id={k} key={k} className={`screen ${screen == k ? '' : 'hidden'}`}>{screens[k].screen}</div>)}
+				{screen && <div id={screen.key} key={screen.key} className='screen'>{screen.element}</div>}
+				{last && <div id={last.key} key={`${last.key}-last`} className='screen last'>{last.element}</div>}
 			</div>
 		);
 	}
@@ -206,27 +249,28 @@ class SidebarButtons extends React.Component<{sidebar: App, minimized: boolean, 
 
 		return (
 			<div onClick={() => { if(minimized) sidebar.select(); }} className={`buttons ${minimized ? 'minimized' : ''}`}>
-				{Object.keys(screens).map((k, i) => <button onClick={() => sidebar.select(k)} key={k} >{screens[k].icon}</button>)}
+				{screens.map((screen) => <button onClick={() => sidebar.select(screen)} key={screen.key} >{screen.icon}</button>)}
 			</div>
 		);
 	}
 
 }
 
-class App extends React.Component<{},{user?: User, screen?: string, post?: PostProps}> {
+class App extends React.Component<{},{user?: User, screen?: Screen, last?: Screen}> {
 
 	constructor(props: any) {
 		super(props);
 		this.state = {};
 	}
 
-	select(screen?: string) {
-		this.setState({ screen });
+	select(screen?: Screen) {
+		const last = this.state.screen;
+		if(!last || !screen || last.key !== screen.key)
+			this.setState({ screen, last });
 	}
 
-	selectPost(post: PostProps) {
-		this.setState({ post });
-		this.select(post.id);
+	selectPost(post: PostProps, image = 0) {
+		this.select({element: <BigPost post={post} active={image} />, key: post.id});
 	}
 
 	getUser() {
@@ -240,24 +284,23 @@ class App extends React.Component<{},{user?: User, screen?: string, post?: PostP
 	}
 
 	render() {
-		const { user, post, screen } = this.state;
+		const { user, last, screen } = this.state;
 
-		const screens: any = {};
+		const buttons: Screens = [];
 
 		if(user) {
-			screens.options = {icon: '⚙', screen: <Settings options={user.options} />};
-			screens.profile = {icon: '🧙‍♂️', screen: <Profile user={user} />};
+			buttons.push({key: 'options', icon: '⚙', element: <Settings options={user.options} />});
+			buttons.push({key: 'profile', icon: '🧙‍♂️', element: <Profile user={user} />});
 		}
 
-		screens.yas = {icon: '💯', screen: <h1>Yas</h1>};
-		screens.lit = {icon: '🔥', screen: <h1>Lit</h1>};
-		screens[post ? post.id : 42] = {screen: (post ? <BigPost post={post} /> : null)}
+		buttons.push({key: 'lit', icon: '🔥', element: <h1>🔥🔥🔥</h1>});
+		buttons.push({key: 'fam', icon: '💯', element: <h1>Lit Fam</h1>});
 
 		if(user)
 			return (
 				<div className={`app row m-0 ${user.options.dark ? 'dark' : ''}`}>
 					<Feed app={this} />
-					<Sidebar app={this} screens={screens} screen={screen} />
+					<Sidebar app={this} screen={screen} last={last} buttons={buttons} />
 				</div>
 			);
 

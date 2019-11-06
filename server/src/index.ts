@@ -1,5 +1,7 @@
 import express from 'express';
 import Reddit from './services/reddit';
+import Random from './services/random';
+import Service from './service';
 
 const bodyParser = require('body-parser')
 const path = require('path');
@@ -9,7 +11,12 @@ import { User, Options, Auth } from './database';
 
 app.use(express.static(path.join(__dirname, 'build')));
 
-new Reddit().register(app);
+const Services: Service[] = [
+	new Reddit(),
+	new Random(),
+];
+
+Services.forEach(s => s.register(app));
 
 app.get('/user', async (req, res) => {
 	try {
@@ -25,8 +32,42 @@ app.get('/user', async (req, res) => {
 
 app.get('/posts', async (req, res) => {
 
-	const posts = await new Reddit().posts();
-	res.json(posts);
+	const user = await User.getUser();
+	const auths = user ? await user.getAuths() : undefined;
+
+	const services = Services.filter(s => !s.createOAuth() || (auths && auths.find(a => a.service == s.name())))
+
+	if(services.length) {
+
+		const total = req.query.count || 1;
+
+		const retrieve = async (services) => {
+			const posts: any[] = [];
+			while(posts.length < total)
+				for(let service of services) {
+
+					try {
+					
+						const p = await service.posts();
+
+						p.forEach(post => {
+							post.service = service.name();
+							posts.push(post);
+						})
+					
+					} catch(e) {
+						posts.push({ text: `Error at ${service.name()}` });
+					}
+
+				}
+			return posts;
+		};
+
+		const posts = await retrieve(services);
+		res.send(posts);
+
+	} else
+		res.send({ message: 'You have no registed services 😢' });
 
 });
 

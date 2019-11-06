@@ -1,8 +1,7 @@
 import express from 'express';
 import Service from '../service';
 import ClientOAuth2 from 'client-oauth2';
-
-const random = require('random-sentence');
+import querystring from 'querystring';
 
 class Reddit extends Service {
 
@@ -23,21 +22,37 @@ class Reddit extends Service {
 		return 'reddit';
 	}
 
-	async posts(count = 1): Promise<any> {
+	parsePost(unparsed): Object {
 
-		return this.request('https://oauth.reddit.com/api/v1/me');
-		
-		const posts = [];
-		for(let i = 0; i < count; i++) {
+		const preview = unparsed.data.preview || {};
+		const images: any[] = preview.images || [];
 
-			const id = + new Date() + i;
-			const rand = Math.floor(Math.random() * 600 + 200);
-			const text = Math.random() < 0.2 ? undefined : random({min: 2, max: 100});
-			const image = !text || Math.random() < 0.2 ? `https://picsum.photos/${rand}` : undefined;
-			posts.push({ text, image, id });
-
+		return {
+			text: unparsed.data.selftext_html,
+			title: unparsed.data.title,
+			id: unparsed.data.name,
+			images: images.map(i => i.source.url),
 		}
+	}
 
+	async posts(count = 1): Promise<any[]> {
+
+		try {
+
+			const query = querystring.encode({
+				limit: count,
+				raw_json: 1,
+			});
+
+			const response = await this.request(`https://oauth.reddit.com/r/me_irl/top.json?${query}`);
+			const unparsed: any[] = JSON.parse(response).data.children;
+			const posts = Object.values(unparsed).map((p) => this.parsePost(p));
+
+			return posts;
+
+		} catch(e) {
+			return [{text: `Error: ${e}`}]
+		}
 	}
 
 }
