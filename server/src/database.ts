@@ -1,5 +1,5 @@
 import Sequelize from 'sequelize';
-import { Association, HasOneGetAssociationMixin, HasOneSetAssociationMixin, HasManyGetAssociationsMixin, HasManyCreateAssociationMixin, HasManySetAssociationsMixin } from 'sequelize';
+import { Association, HasOneGetAssociationMixin, HasManyRemoveAssociationMixin, HasOneSetAssociationMixin, HasManyGetAssociationsMixin, HasManyCreateAssociationMixin, HasManySetAssociationsMixin } from 'sequelize';
 
 const sequelize = new Sequelize.Sequelize({
 	dialect: 'sqlite',
@@ -14,6 +14,12 @@ sequelize
 
 type service = string;
 type token = string;
+
+/*
+	The User object
+	Has one Option model
+	Has multiple Auth models
+*/
 export class User extends Sequelize.Model {
 	public id!: number;
 	public username!: string;
@@ -22,6 +28,7 @@ export class User extends Sequelize.Model {
 	public setOptions!: HasOneSetAssociationMixin<Options, number>;
 
 	private createAuth!: HasManyCreateAssociationMixin<Auth>;
+	private removeAuth!: HasManyRemoveAssociationMixin<Auth, number>;
 	public getAuths!: HasManyGetAssociationsMixin<Auth>;
 
 	public static associations: {
@@ -61,14 +68,32 @@ export class User extends Sequelize.Model {
 		await this.save();
 	}
 
+	async removeSerice(service: service) {
+
+		const auths = await this.getAuths();
+		const auth = auths.find(a => a.service === service);
+		if(auth) {
+			return await this.removeAuth(auth);
+		}
+
+		return false;
+
+	}
+
 }
 
+/*
+	Stores the preferences for a specific User
+*/
 export class Options extends Sequelize.Model {
 	public id!: number;
 
 	public dark!: boolean;
 }
 
+/*
+	Stores the auth & refresh key for a specific User and Service
+*/
 export class Auth extends Sequelize.Model {
 	public service!: service;
 	public accessToken!: token;
@@ -117,7 +142,9 @@ User.init({
 User.hasOne(Options, { foreignKey: 'id', as: 'options'});
 User.hasMany(Auth, { as: 'auths'});
 
-/*
+//User.getUser().then(u => u.removeSerice('reddit'))
+
+/* Will flush the Database & Apply Structure changes
 sequelize.sync({ force: true })
 	.then(() => User.createUser({ username: 'Dev' }));
 */

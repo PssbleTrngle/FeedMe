@@ -5,6 +5,10 @@ import querystring from 'querystring';
 
 class Reddit extends Service {
 
+	/**
+		Create an OAuth Object
+		@return {ClientOAuth2} the object;
+	*/
 	createOAuth(): ClientOAuth2 {
 		return new ClientOAuth2({
 			clientId: 'WIgree3v3c3SbQ',
@@ -18,41 +22,94 @@ class Reddit extends Service {
 		});
 	}
 
+
+	/**
+		@return The name of the service. Should be unique
+	*/
 	name(): string {
 		return 'reddit';
 	}
 
-	parsePost(unparsed): Object {
+	/**
+		Takes the data retrieved from the API and converts them into the Post object
 
-		const preview = unparsed.data.preview || {};
+		@param {Object} data: The unparsed data reddit sent
+		@return {Post} the parsed post
+	*/
+	parsePost(data): Object {
+
+		const preview = data.preview || {};
 		const images: any[] = preview.images || [];
 
 		return {
-			text: unparsed.data.selftext_html,
-			title: unparsed.data.title,
-			id: unparsed.data.name,
-			images: images.map(i => i.source.url),
+			text: data.selftext_html,
+			title: data.title,
+			id: data.name,
+			author: data.author,
+			images: images.map(i => {
+				const img = {};
+				const r: any[] = i.resolutions;
+				const v = i.variants
+
+				img.preview = i.source.url;
+				img.full = r[r.length - 1].url;
+				if(v && v.gif) img.animated = v.gif.source.url;
+				return img;
+			}),
+			sub: data.subreddit,
 		}
 	}
 
-	async posts(count = 1): Promise<any[]> {
+	/**
+		@return {string} The URL a user is sent to to authentificate the service
+	*/
+	requestURL(): string {
+		return 'https://oauth.reddit.com';
+	}
 
-		try {
+	/**
+		Retrieves the 'best' posts for the user
+		
+		@param {string} start: The id of the last retrieved post
+		@param {number} count: The amount of retrieved posts
+		@param {number} index: The amonut of already retrieved posts
+		@return {Post[]} The posts
+	*/
+	async best(start?: string, count: number, index = 0): Promise<any[]> {
 
-			const query = querystring.encode({
-				limit: count,
-				raw_json: 1,
-			});
+		const query = querystring.encode({
+			limit: count,
+			raw_json: 1,
+			after: start,
+			count,
+		});
 
-			const response = await this.request(`https://oauth.reddit.com/r/me_irl/top.json?${query}`);
-			const unparsed: any[] = JSON.parse(response).data.children;
-			const posts = Object.values(unparsed).map((p) => this.parsePost(p));
+		const response = await this.requestJSON(`/best.json?${query}`);
+		const unparsed: any[] = response.data.children;
 
-			return posts;
+		return Object.values(unparsed).map((p) => this.parsePost(p.data));
+	}
 
-		} catch(e) {
-			return [{text: `Error: ${e}`}]
-		}
+
+	/**
+		@param {string} start: The id of the last retrieved post
+		@param {number} count: The amount of retrieved posts
+		@param {number} index: The amonut of already retrieved posts
+		@return {Post[]} the posts retrieved
+	*/
+	async posts(start?: string, count: number, index = 0): Promise<any[]> {
+
+		const posts = await this.best(start, count, index);
+		return posts;
+
+	}
+
+	/**
+		@return the subreddits the user is subscribed to
+	*/
+	async subreddits() {
+		const unparsed = await this.requestJSON('/subreddits/mine.json');
+		return unparsed.data.children.map(sub => sub.data.display_name);
 	}
 
 }

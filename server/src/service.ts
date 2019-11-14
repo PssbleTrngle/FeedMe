@@ -5,14 +5,49 @@ import { User, Options, Auth } from './database';
 
 abstract class Service {
 
+	/**
+		Create an OAuth Object
+		@return {ClientOAuth2} the object;
+	*/
 	abstract createOAuth(): ClientOAuth2 | undefined;
 
+	/**
+		@return The name of the service. Should be unique
+	*/
 	abstract name(): string;
 
-	abstract async posts(count: number): Promise<any[]>;
+	/**
+		@param {string} start: The id of the last retrieved post
+		@param {number} count: The amount of retrieved posts
+		@param {number} index: The amonut of already retrieved posts
+		@return {Post[]} the posts retrieved
+	*/
+	async posts(start?: string, count: number, index = 0): Promise<any[]>;
 
+	/**
+		Sends a request to a specified api endpoint using the auth token and parses the data to JSON
+
+		@param {string} url: The API endpoint
+		@param {string} method: The HTTP Method
+		@return {Object | Array} The data the API sends back
+	*/
+	async requestJSON(url: string, method: string = 'GET'): Promise<Object | Array> {
+		const response = await this.request(url, method);
+		if(response) {
+			return JSON.parse(response);
+		}
+		return null;
+	}
+
+	/**
+		Sends a request to a specified api endpoint using the auth token
+
+		@param {string} url: The API endpoint
+		@param {string} method: The HTTP Method
+		@return {any} The data the API sends back
+	*/
 	async request(url: string, method: string = 'GET'): Promise<any> {
-		const values: any = { method, url };
+		const values: any = { method, url: this.requestURL() + url };
 		const user = await User.getUser();
 
 		if(user) {
@@ -25,18 +60,15 @@ abstract class Service {
 				if(!oauth) return null;
 
 				let token = oauth.createToken(auth.accessToken, auth.refreshToken, {});
-		 
-				//const refreshed = await token.refresh();
 
 				values.headers = {
 					'Authorization': `bearer ${auth.accessToken}`,
 					'User-Agent': 'FeedMe',
 				};
 
-
 				return new Promise((resolve, reject) => {
 					request(values, (error, response, body) => {
-						if(error) reject(`Error: ${error}`);
+						if(error) reject(error);
 						resolve(body);
 					});
 				});
@@ -48,6 +80,11 @@ abstract class Service {
 		return null;
 
 	}
+
+	/**
+		@return {string} The URL a user is sent to to authentificate the service
+	*/
+	abstract requestURL(): string;
 
 	register(app: Express) {
 
@@ -71,12 +108,16 @@ abstract class Service {
 				const user = await User.getUser();
 				if(user) await user.authenticate(name, accessToken, refreshToken);
 
-				res.json({ accessToken, refreshToken });
+				res.redirect('http://localhost:3000')
 
 			});
 
 		}
 
+	}
+
+	toString() {
+		return this.name();
 	}
 
 }
