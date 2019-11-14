@@ -5,13 +5,14 @@ const random = require('random-sentence');
 
 class Random extends Service {
 
-	createOAuth(): undefined {}
+	createOAuth(): undefined { return undefined; }
+	requestURL(): string { return ''; }
 
 	name(): string {
 		return 'random';
 	}
 
-	async posts(start: {[key: string]: string}, count: number, index = 0): Promise<any[]> {
+	async posts(start: string | undefined, count: number, index = 0): Promise<any[]> {
 		
 		const posts = [];
 		for(let i = 0; i < count; i++) {

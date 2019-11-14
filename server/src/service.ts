@@ -22,7 +22,7 @@ abstract class Service {
 		@param {number} index: The amonut of already retrieved posts
 		@return {Post[]} the posts retrieved
 	*/
-	async posts(start?: string, count: number, index = 0): Promise<any[]>;
+	abstract async posts(start: string | undefined, count: number, index: number): Promise<any[]>;
 
 	/**
 		Sends a request to a specified api endpoint using the auth token and parses the data to JSON
@@ -31,12 +31,12 @@ abstract class Service {
 		@param {string} method: The HTTP Method
 		@return {Object | Array} The data the API sends back
 	*/
-	async requestJSON(url: string, method: string = 'GET'): Promise<Object | Array> {
+	async requestJSON(url: string, method?: string): Promise<any> {
 		const response = await this.request(url, method);
 		if(response) {
 			return JSON.parse(response);
 		}
-		return null;
+		return {};
 	}
 
 	/**
@@ -67,7 +67,7 @@ abstract class Service {
 				};
 
 				return new Promise((resolve, reject) => {
-					request(values, (error, response, body) => {
+					request(values, (error: any, response: any, body: any) => {
 						if(error) reject(error);
 						resolve(body);
 					});

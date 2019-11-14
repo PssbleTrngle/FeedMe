@@ -36,7 +36,7 @@ class Reddit extends Service {
 		@param {Object} data: The unparsed data reddit sent
 		@return {Post} the parsed post
 	*/
-	parsePost(data): Object {
+	parsePost(data: any): Object {
 
 		const preview = data.preview || {};
 		const images: any[] = preview.images || [];
@@ -47,7 +47,7 @@ class Reddit extends Service {
 			id: data.name,
 			author: data.author,
 			images: images.map(i => {
-				const img = {};
+				const img: any = {};
 				const r: any[] = i.resolutions;
 				const v = i.variants
 
@@ -75,7 +75,7 @@ class Reddit extends Service {
 		@param {number} index: The amonut of already retrieved posts
 		@return {Post[]} The posts
 	*/
-	async best(start?: string, count: number, index = 0): Promise<any[]> {
+	async best(start: string | undefined, count: number, index = 0): Promise<any[]> {
 
 		const query = querystring.encode({
 			limit: count,
@@ -97,7 +97,7 @@ class Reddit extends Service {
 		@param {number} index: The amonut of already retrieved posts
 		@return {Post[]} the posts retrieved
 	*/
-	async posts(start?: string, count: number, index = 0): Promise<any[]> {
+	async posts(start: string | undefined, count: number, index = 0): Promise<any[]> {
 
 		const posts = await this.best(start, count, index);
 		return posts;
@@ -109,7 +109,7 @@ class Reddit extends Service {
 	*/
 	async subreddits() {
 		const unparsed = await this.requestJSON('/subreddits/mine.json');
-		return unparsed.data.children.map(sub => sub.data.display_name);
+		return unparsed.data.children.map((sub: any) => sub.data.display_name);
 	}
 
 }
