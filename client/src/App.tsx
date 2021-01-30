@@ -251,7 +251,7 @@ class Profile extends React.Component<{user: User},{}> {
 		return (
 			<>
 				<h1>Profile</h1>
-				<p>{user.username}</p>
+				<h3 className='my-2'>{user.username}</h3>
 				<Twemoji>
 					{icons[Math.floor(Math.random() * icons.length)]}
 				</Twemoji>
@@ -261,28 +261,43 @@ class Profile extends React.Component<{user: User},{}> {
 
 }
 
-class Setting extends React.Component<{option: string, value: any},{}> {
+type update = () => void;
+
+class Setting extends React.Component<{option: string, value: any, update: update},{}> {
+
+	set(value: any) {
+		const { option, update } = this.props;
+
+		fetch('/settings', { 
+				method: 'POST',
+				body: JSON.stringify({ value, option }), 
+		        headers: {
+		            "Content-Type": "application/json; charset=utf-8",
+		        },
+			})
+			.then(r => update())
+	}
 
 	render() {
 		const { option, value } = this.props;
 
 		let input;
 		if(typeof value === 'boolean') 
-			input = <input type='checkbox' checked={value}></input>;
+			input = <input onChange={() => this.set(!value)} type='checkbox' checked={value}></input>;
 
 		if(!input) return null;
 
 		return (
 			<p className='setting'>
 				<span>{option}: </span>
-				{input}
+				<span>{input}</span>
 			</p>
 		)
 	}
 
 }
 
-class Settings extends React.Component<{options: Options},{}> {
+class Settings extends React.Component<{options: Options, update: update},{}> {
 
 	registerService(service: string) {
 		fetch(`/register/${service}`)
@@ -293,18 +308,18 @@ class Settings extends React.Component<{options: Options},{}> {
 	}
 
 	render() {
-		const { options } : any = this.props;
+		const { options, update } : any = this.props;
 
 		const services = ['reddit', 'twitter'];
 
 		return (
 			<>
 				<h1>Settings</h1>
-				{Object.keys(options).map(key => <Setting key={key} option={key} value={options[key]} />)}
+				{Object.keys(options).map(key => <Setting update={update} key={key} option={key} value={options[key]} />)}
 				
 				<h2 className='mt-5 mb-3'>Your Services</h2>
 				{services.map(service =>
-					<div className='my-2'><button className={`service ${service}`} onClick={() => this.registerService(service)} key={service}>{service}</button></div>
+					<div key={service} className='my-2'><button className={`service ${service}`} onClick={() => this.registerService(service)} >{service}</button></div>
 				)}
 			</>
 		);
@@ -430,7 +445,7 @@ class App extends React.Component<{},{user?: User, screen?: Screen, last?: Scree
 		const buttons: Screens = [];
 
 		if(user) {
-			buttons.push({key: 'settings', icon: '⚙', element: <Settings options={user.options} />});
+			buttons.push({key: 'settings', icon: '⚙', element: <Settings update={() => this.getUser()} options={user.options} />});
 			buttons.push({key: 'profile', icon: '🧙‍♂️', element: <Profile user={user} />});
 			buttons.push({key: 'fam', icon: '💯', element: <h1>Lit Fam</h1>});
 			buttons.push({key: 'feeds', icon: '🍽', element: <Feeds />});
